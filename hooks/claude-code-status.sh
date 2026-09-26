@@ -35,7 +35,7 @@ validate_path() {
 validate_ancestors() {
   local dir="$1"
   local current="$dir"
-  while [ "$current" != "/" ] && [ "$current" != "$HOME" ]; do
+  while [ "$current" != "/" ] && [ "$current" != "$HOME_REAL" ]; do
     current="$(dirname "$current")"
     if [ -L "$current" ]; then
       return 1
@@ -50,6 +50,10 @@ validate_ancestors() {
 }
 
 mkdir -p "$STATE_DIR" || exit 0
+# Resolve symlinks the user set up themselves (e.g. ~/.local pointing into a
+# dotfiles repo) before checking, so the checks below run on the real path.
+STATE_DIR="$(realpath -e "$STATE_DIR")" || exit 0
+HOME_REAL="$(realpath -e "$HOME")" || exit 0
 # Validate the status directory
 if ! validate_path "$STATE_DIR" || ! validate_ancestors "$STATE_DIR"; then
   exit 0

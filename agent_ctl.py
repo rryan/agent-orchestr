@@ -1516,18 +1516,22 @@ def get_process_open_session(pid: int) -> Optional[str]:
 # the same first-line and secret-redaction pass as every other agent detail.
 def read_claude_hook_status(pid: int) -> Optional[Dict[str, str]]:
     """Read the live status Claude Code's own hooks wrote for this PID."""
-    path = os.path.join(CLAUDE_HOOK_STATUS_DIR, f"{pid}.json")
+    # Resolve symlinks the user set up themselves (e.g. ~/.local pointing into
+    # a dotfiles repo) first, so the checks below run on the real path.
+    status_dir = os.path.realpath(CLAUDE_HOOK_STATUS_DIR)
+    home_real = os.path.realpath(os.path.expanduser("~"))
+    path = os.path.join(status_dir, f"{pid}.json")
 
     # Owner and symlink checks: verify the directory is not a symlink, is owned
     # by the current user, and that none of its ancestor directories are symlinks.
     try:
-        if os.path.islink(CLAUDE_HOOK_STATUS_DIR):
+        if os.path.islink(status_dir):
             return None
-        if os.stat(CLAUDE_HOOK_STATUS_DIR).st_uid != os.getuid():
+        if os.stat(status_dir).st_uid != os.getuid():
             return None
         # Check ancestors for symlinks
-        check_dir = CLAUDE_HOOK_STATUS_DIR
-        while check_dir != os.path.expanduser("~") and check_dir != "/":
+        check_dir = status_dir
+        while check_dir != home_real and check_dir != "/":
             parent = os.path.dirname(check_dir)
             if os.path.islink(parent):
                 return None
